@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molmo Browser Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+        }
+        .preview-section {
+            display: flex;
+            gap: 20px;
+        }
+        .preview-image {
+            max-width: 100%;
+            height: auto;
+        }
+        .results-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 4px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Molmo UI Element Detection</h1>
+        
+        <div class="upload-section">
+            <h2>Upload Screenshot</h2>
+            <input type="file" id="fileInput" accept="image/*" />
+            <button id="analyzeBtn">Analyze Image</button>
+        </div>
+
+        <div class="preview-section">
+            <div>
+                <h3>Original Image</h3>
+                <img id="originalImage" class="preview-image" />
+            </div>
+            <div>
+                <h3>Detected Elements</h3>
+                <img id="overlayImage" class="preview-image" />
+            </div>
+        </div>
+
+        <div class="results-section">
+            <h3>Detection Results</h3>
+            <pre id="results">No results yet</pre>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const originalImage = document.getElementById('originalImage');
+        const results = document.getElementById('results');
+
+        // Preview image when selected
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    originalImage.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle analyze button click
+        analyzeBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                results.innerHTML = '<span class="error">Please select an image first</span>';
+                return;
+            }
+
+            try {
+                // Create form data
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Send request to backend
+                // Get coordinates
+                const coordResponse = await fetch('http://localhost:8000/api/v1/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!coordResponse.ok) {
+                    throw new Error(`HTTP error! status: ${coordResponse.status}`);
+                }
+
+                // Get overlay image
+                const overlayResponse = await fetch('http://localhost:8000/api/v1/detect-with-overlay', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!overlayResponse.ok) {
+                    throw new Error(`HTTP error! status: ${overlayResponse.status}`);
+                }
+
+                // Parse and display results
+                const coordData = await coordResponse.json();
+                const overlayData = await overlayResponse.json();
+                
+                // Display coordinates
+                results.innerHTML = JSON.stringify(coordData, null, 2);
+                
+                // Display overlay image
+                document.getElementById('overlayImage').src = overlayData.image;
+
+            } catch (error) {
+                results.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>
